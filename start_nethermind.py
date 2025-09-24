@@ -5,10 +5,18 @@ import shutil
 
 # Code inspired from https://github.com/NethermindEth/gas-benchmarks
 container_name = "nethermind-bench"
+chain="mainnet"
 snapshot_dir = Path("execution-data")
 merged_dir = Path("overlay-merged")
 upper_dir  = Path("overlay-upper")
 work_dir   = Path("overlay-work")
+
+def ensure_jwt(jwt_dir: Path) -> Path:
+    jwt_dir.mkdir(parents=True, exist_ok=True)
+    jwt = jwt_dir / "jwt.hex"
+    if not jwt.exists(): jwt.write_text(os.urandom(32).hex())
+    return jwt
+jwt_path = ensure_jwt(Path("engine-jwt"))
 
 def stop_and_remove_container(name: str):
     subprocess.run(["docker", "rm", "-f", name], check=False)
@@ -61,3 +69,11 @@ def ensure_overlay_mount(lower: Path, upper: Path, work: Path, merged: Path):
 
 stop_and_remove_container(container_name)
 ensure_overlay_mount(lower=snapshot_dir, upper=upper_dir, work=work_dir, merged=merged_dir)
+start_nethermind_container(
+        chain=chain,
+        db_dir=merged_dir,
+        jwt_path=jwt_path,
+        rpc_port=8545,
+        engine_port=8551,
+        name=container_name,
+    )
