@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 import csv
 import sys
+import jwt  # pip install pyjwt
 
 try:
     import requests
@@ -126,10 +127,24 @@ def main():
     jwt_token = read_text_file_strip(jwt_path)
     anchor_hash = read_text_file_strip(anchor_path)
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {jwt_token}",
+    secret_bytes = bytes.fromhex(jwt_token)
+
+    # 2. Create JWT with iat/exp
+    iat = int(time.time())
+    token = jwt.encode({"iat": iat, "exp": iat + 3600}, secret_bytes, algorithm="HS256")
+
+    # 3. Use in requests
+    headers = {"Content-Type": "application/json",
+            "Authorization": f"Bearer {token}"}
+
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "engine_exchangeCapabilities",
+        "params": [[]]
     }
+
+    r = requests.post(engine_url, headers=headers, json=payload)
 
     # Send initial forkchoiceUpdated with anchor as head/safe/finalized
     initial_fcu = {
