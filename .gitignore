@@ -1,2 +1,6 @@
 payloads/
 payloads.tar.gz
+
+venv/
+__pycache__/
+*.pyc
