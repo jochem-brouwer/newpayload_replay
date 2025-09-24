@@ -1,5 +1,6 @@
 payloads/
 payloads.tar.gz
+test_output/
 
 venv/
 __pycache__/
