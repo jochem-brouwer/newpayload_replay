@@ -16,7 +16,7 @@ def ensure_jwt(jwt_dir: Path) -> Path:
     jwt = jwt_dir / "jwt.hex"
     if not jwt.exists(): jwt.write_text(os.urandom(32).hex())
     return jwt
-jwt_path = ensure_jwt(Path("engine-jwt"))
+jwt_path = ensure_jwt(Path("jwt"))
 
 def stop_and_remove_container(name: str):
     subprocess.run(["docker", "rm", "-f", name], check=False)
