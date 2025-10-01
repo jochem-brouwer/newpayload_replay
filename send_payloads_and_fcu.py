@@ -96,6 +96,16 @@ def validate_fcu_response(resp_json: dict) -> (bool, str):
         return ok, result
     return False, json.dumps(resp_json)[:200]
 
+def headers(secret_bytes):
+    # Create JWT with iat. Should be issued recently (within a minute)
+    iat = int(time.time())
+    token = jwt.encode({"iat": iat, "exp": iat + 36000}, secret_bytes, algorithm="HS256")
+
+    # Use in requests
+    headers = {"Content-Type": "application/json",
+            "Authorization": f"Bearer {token}"}
+    
+    return headers
 
 def main():
     p = argparse.ArgumentParser()
@@ -129,14 +139,6 @@ def main():
 
     secret_bytes = bytes.fromhex(jwt_token)
 
-    # 2. Create JWT with iat/exp
-    iat = int(time.time())
-    token = jwt.encode({"iat": iat, "exp": iat + 3600}, secret_bytes, algorithm="HS256")
-
-    # 3. Use in requests
-    headers = {"Content-Type": "application/json",
-            "Authorization": f"Bearer {token}"}
-
     payload = {
         "jsonrpc": "2.0",
         "id": 1,
@@ -144,7 +146,7 @@ def main():
         "params": [[]]
     }
 
-    r = requests.post(engine_url, headers=headers, json=payload)
+    r = requests.post(engine_url, headers=headers(secret_bytes), json=payload)
 
     # Send initial forkchoiceUpdated with anchor as head/safe/finalized
     initial_fcu = {
@@ -180,7 +182,7 @@ def main():
     # perform initial FCU
     try:
         start = time.perf_counter()
-        r = requests.post(engine_url, headers=headers, json=initial_fcu, timeout=args.timeout)
+        r = requests.post(engine_url, headers=headers(secret_bytes), json=initial_fcu, timeout=args.timeout)
         duration = time.perf_counter() - start
         r.raise_for_status()
         resp = r.json()
@@ -210,6 +212,8 @@ def main():
     with open(csv_file, "w", newline="", encoding="utf-8") as cf:
         writer = csv.DictWriter(cf, fieldnames=csv_fields)
         writer.writeheader()
+
+        first_fcu = True
 
         # iterate requests file line by line
         with open(requests_path, "r", encoding="utf-8") as rf:
@@ -251,7 +255,7 @@ def main():
                 try:
                     # Send newPayload request
                     np_start = time.perf_counter()
-                    rnp = requests.post(engine_url, headers=headers, json=req_obj, timeout=args.timeout)
+                    rnp = requests.post(engine_url, headers=headers(secret_bytes), json=req_obj, timeout=args.timeout)
                     np_duration = time.perf_counter() - np_start
                     rnp.raise_for_status()
                     np_resp = rnp.json()
@@ -298,7 +302,7 @@ def main():
                     }
                     try:
                         fcu_start = time.perf_counter()
-                        rf = requests.post(engine_url, headers=headers, json=fcu_body, timeout=args.timeout)
+                        rf = requests.post(engine_url, headers=headers(secret_bytes), json=fcu_body, timeout=args.timeout)
                         fcu_duration = time.perf_counter() - fcu_start
                         rf.raise_for_status()
                         rf_json = rf.json()
